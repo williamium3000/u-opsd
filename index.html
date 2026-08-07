@@ -13,17 +13,15 @@
 :root{
   --ink:#14171c; --body:#3d4450; --muted:#767f8d; --line:#e3e7ec;
   --bg:#ffffff; --soft:#f7f9fb; --accent:#b2182b; --accent2:#0072b2;
+  --step:#dbeafe; --step-ink:#1d4ed8;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
 }
-@media (prefers-color-scheme:dark){
-  :root{--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
-        --bg:#12151a;--soft:#181c22;--accent:#e8697e;--accent2:#5ab0e8;}
 }
-:root[data-theme="dark"]{--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
+:root[data-theme="dark"]{--step:#1e3a5f;--step-ink:#9ec9f0;--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
   --bg:#12151a;--soft:#181c22;--accent:#e8697e;--accent2:#5ab0e8;}
-:root[data-theme="light"]{--ink:#14171c;--body:#3d4450;--muted:#767f8d;--line:#e3e7ec;
+:root[data-theme="light"]{--step:#dbeafe;--step-ink:#1d4ed8;--ink:#14171c;--body:#3d4450;--muted:#767f8d;--line:#e3e7ec;
   --bg:#ffffff;--soft:#f7f9fb;--accent:#b2182b;--accent2:#0072b2;}
 
 *{box-sizing:border-box}
@@ -68,7 +66,7 @@ strong{color:var(--ink);font-weight:600}
 .flow{display:grid;gap:12px;margin:22px 0 26px}
 .step{display:grid;grid-template-columns:30px 1fr;gap:14px;align-items:start;
       background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:15px 17px}
-.num{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;
+.num{width:30px;height:30px;border-radius:50%;background:var(--step);color:var(--step-ink);
      display:grid;place-items:center;font-size:14px;font-weight:650;font-family:var(--mono)}
 .step h4{margin:3px 0 5px;font-size:15.5px;color:var(--ink);font-weight:650}
 .step p{margin:0;font-size:15px}
@@ -111,14 +109,32 @@ pre{background:var(--soft);border:1px solid var(--line);border-radius:10px;
     line-height:1.6;color:var(--body);margin:0}
 footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
 
+/* ---------- theme toggle ---------- */
+#theme{position:fixed;top:16px;right:16px;z-index:50;width:38px;height:38px;border-radius:50%;
+       display:grid;place-items:center;cursor:pointer;background:var(--bg);color:var(--ink);
+       border:1px solid var(--line);font-size:16px;line-height:1;padding:0;
+       transition:border-color .15s,transform .15s}
+#theme:hover{border-color:var(--muted);transform:scale(1.06)}
+#theme .moon{display:none}
+:root[data-theme="dark"] #theme .moon{display:block}
+:root[data-theme="dark"] #theme .sun{display:none}
+@media (max-width:600px){#theme{top:10px;right:10px;width:34px;height:34px;font-size:14px}}
+
 @media (max-width:600px){
   body{font-size:16px}
   header{padding:44px 0 34px}
   section{padding:34px 0}
 }
 </style>
+<script>
+(function(){try{var t=localStorage.getItem("uopsd-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}})();
+</script>
 </head>
 <body>
+
+<button id="theme" type="button" aria-label="Toggle colour theme" title="Toggle light / dark">
+  <span class="sun">&#9728;&#65039;</span><span class="moon">&#127769;</span>
+</button>
 
 <header>
   <div class="wrap">
@@ -393,5 +409,14 @@ footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
 </footer>
 
 </div>
+<script>
+document.getElementById("theme").addEventListener("click", function () {
+  var root = document.documentElement;
+  var dark = root.getAttribute("data-theme") === "dark";
+  var next = dark ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("uopsd-theme", next); } catch (e) {}
+});
+</script>
 </body>
 </html>
