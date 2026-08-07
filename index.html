@@ -18,7 +18,6 @@
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
 }
-}
 :root[data-theme="dark"]{--step:#1e3a5f;--step-ink:#9ec9f0;--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
   --bg:#12151a;--soft:#181c22;--accent:#e8697e;--accent2:#5ab0e8;}
 :root[data-theme="light"]{--step:#dbeafe;--step-ink:#1d4ed8;--ink:#14171c;--body:#3d4450;--muted:#767f8d;--line:#e3e7ec;
@@ -94,7 +93,8 @@ caption{caption-side:bottom;text-align:left;color:var(--muted);font-size:13.5px;
 /* ---------- figures ---------- */
 figure{margin:24px 0}
 figure img{width:100%;max-width:100%;display:block;border:1px solid var(--line);
-           border-radius:10px;background:#fff}
+           border-radius:10px;background:#fff;padding:6px}
+:root[data-theme="dark"] figure img{filter:brightness(.92)}
 figcaption{color:var(--muted);font-size:13.5px;margin-top:10px;line-height:1.55}
 
 /* ---------- highlight cards ---------- */
@@ -165,19 +165,21 @@ footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
 <section id="abstract">
   <h2>Abstract</h2>
   <p class="lead">On-policy (Self-)Distillation (OPD / OPSD) has shown strong potential for post-training large
-  language models (LLMs). However, existing methods still rely heavily on external supervision, including
-  ground-truth signals, environmental feedback, or guidance from larger models, and therefore fall short of
-  genuine &ldquo;self&rdquo;-distillation. In this study, we show that on-policy self-distillation can be achieved
-  using only a model's own generations via internal consistency. We propose unsupervised on-policy
-  self-distillation (u-OPSD). u-OPSD first samples multiple rollouts and constructs a pseudo solution by
-  majority vote under a self-consistency threshold. It then conditions the model's distribution on the
-  pseudo-solution and distills itself on the disagreeing completions, allowing the model to correct itself
-  precisely where it is confidently wrong. Across diverse benchmarks, base models, and training settings,
-  u-OPSD consistently improves over the base models and matches or surpasses supervised methods with ground
-  truth (GT) such as OPSD and GRPO. On five mathematical reasoning benchmarks, i.e., AIME24, AIME25, HMMT25,
-  MATH500, and AMC23, u-OPSD improves over the base model by 8.5% and 10.7% on Qwen3 non-thinking mode at 4B
-  and 8B scales, and outperforms OPSD by 3.2% and 2.3% on average, respectively. In thinking mode, u-OPSD stays
-  on par with OPSD, ahead by 0.9% at 4B and level at 8B and surpassing GRPO by 0.7% and 1.1%, respectively.</p>
+  language models (LLMs). However, existing methods still rely heavily on <strong>external supervision</strong>,
+  including ground-truth signals, environmental feedback, or guidance from larger models, and therefore fall
+  short of genuine &ldquo;self&rdquo;-distillation. In this study, we show that on-policy self-distillation can
+  be achieved <strong>using only a model's own generations via internal consistency</strong>. We propose
+  unsupervised on-policy self-distillation (<strong>u-OPSD</strong>). u-OPSD first samples multiple rollouts and
+  constructs a <strong>pseudo solution by majority vote under a self-consistency threshold</strong>. It then
+  conditions the model's distribution on the pseudo-solution and <strong>distills itself on the disagreeing
+  completions</strong>, allowing the model to correct itself precisely where it is confidently wrong. Across
+  diverse benchmarks, base models, and training settings, u-OPSD consistently improves over the base models and
+  <strong>matches or surpasses supervised methods with ground truth (GT)</strong> such as OPSD and GRPO. On five
+  mathematical reasoning benchmarks, i.e., AIME24, AIME25, HMMT25, MATH500, and AMC23, u-OPSD improves over the
+  base model by <strong>8.5%</strong> and <strong>10.7%</strong> on Qwen3 non-thinking mode at 4B and 8B scales,
+  and outperforms OPSD by <strong>3.2%</strong> and <strong>2.3%</strong> on average, respectively. In thinking
+  mode, u-OPSD stays on par with OPSD, ahead by 0.9% at 4B and level at 8B and surpassing GRPO by 0.7% and 1.1%,
+  respectively.</p>
 </section>
 
 <section id="method">
