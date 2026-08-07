@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>u-OPSD &middot; On-Policy Self-Distillation without Any Supervision</title>
+<meta name="description" content="u-OPSD turns a model's own self-consistency into the supervision for on-policy self-distillation: majority-vote pseudo-solutions condition the teacher, and the student is distilled on the rollouts that disagreed.">
+<meta property="og:title" content="On-Policy Self-Distillation without Any Supervision">
+<meta property="og:description" content="Post-training a language model with no labels, no verifier, and no larger teacher — only the model's agreement with itself.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128260;</text></svg>">
+<style>
+:root{
+  --ink:#14171c; --body:#3d4450; --muted:#767f8d; --line:#e3e7ec;
+  --bg:#ffffff; --soft:#f7f9fb; --accent:#b2182b; --accent2:#0072b2;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
+        --bg:#12151a;--soft:#181c22;--accent:#e8697e;--accent2:#5ab0e8;}
+}
+:root[data-theme="dark"]{--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
+  --bg:#12151a;--soft:#181c22;--accent:#e8697e;--accent2:#5ab0e8;}
+:root[data-theme="light"]{--ink:#14171c;--body:#3d4450;--muted:#767f8d;--line:#e3e7ec;
+  --bg:#ffffff;--soft:#f7f9fb;--accent:#b2182b;--accent2:#0072b2;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--body);font-family:var(--sans);
+     font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- hero ---------- */
+header{padding:64px 0 42px;border-bottom:1px solid var(--line)}
+h1{font-family:var(--serif);font-size:clamp(30px,5vw,44px);line-height:1.18;
+   color:var(--ink);font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:15px;margin:0 0 26px}
+.authors{font-size:16.5px;color:var(--ink);margin:0 0 8px;line-height:1.9}
+.authors sup{color:var(--muted);font-size:11px;font-weight:600}
+.affil{font-size:14px;color:var(--muted);margin:0 0 28px;line-height:1.8}
+.affil sup{font-weight:600}
+.links{display:flex;flex-wrap:wrap;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 17px;border-radius:999px;
+     background:var(--ink);color:var(--bg);font-size:14.5px;font-weight:500;
+     border:1px solid var(--ink);transition:opacity .15s}
+.btn:hover{opacity:.82;text-decoration:none}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--muted);opacity:1}
+.btn .ic{font-size:15px;line-height:1}
+.soon{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+      border:1px dashed var(--line);border-radius:999px;padding:8px 15px}
+
+/* ---------- sections ---------- */
+section{padding:44px 0;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:none}
+h2{font-family:var(--serif);font-size:25px;color:var(--ink);font-weight:600;
+   margin:0 0 18px;letter-spacing:-.005em}
+h3{font-size:16px;color:var(--ink);font-weight:650;margin:26px 0 8px}
+p{margin:0 0 15px}
+.lead{font-size:17.5px}
+em{color:var(--ink);font-style:italic}
+strong{color:var(--ink);font-weight:600}
+
+/* ---------- method diagram ---------- */
+.flow{display:grid;gap:12px;margin:22px 0 26px}
+.step{display:grid;grid-template-columns:30px 1fr;gap:14px;align-items:start;
+      background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+.num{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;
+     display:grid;place-items:center;font-size:14px;font-weight:650;font-family:var(--mono)}
+.step h4{margin:3px 0 5px;font-size:15.5px;color:var(--ink);font-weight:650}
+.step p{margin:0;font-size:15px}
+.kbd{font-family:var(--mono);font-size:13.5px;background:var(--bg);border:1px solid var(--line);
+     border-radius:5px;padding:1px 6px;color:var(--ink)}
+
+/* ---------- tables ---------- */
+.scroller{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:600px}
+th,td{padding:9px 12px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{background:var(--soft);color:var(--ink);font-weight:600;font-size:13.5px;
+         border-bottom:1px solid var(--line)}
+tbody tr{border-bottom:1px solid var(--line)}
+tbody tr:last-child{border-bottom:none}
+tr.group td{background:var(--soft);color:var(--muted);font-size:12.5px;font-weight:600;
+            letter-spacing:.05em;text-transform:uppercase;padding:7px 12px}
+tr.ours{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+tr.ours td{color:var(--ink);font-weight:650}
+td.best{color:var(--accent);font-weight:650}
+.pad{padding-left:26px !important}
+caption{caption-side:bottom;text-align:left;color:var(--muted);font-size:13.5px;
+        padding:11px 12px;line-height:1.55}
+
+/* ---------- figures ---------- */
+figure{margin:24px 0}
+figure img{width:100%;max-width:100%;display:block;border:1px solid var(--line);
+           border-radius:10px;background:#fff}
+figcaption{color:var(--muted);font-size:13.5px;margin-top:10px;line-height:1.55}
+
+/* ---------- highlight cards ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin:22px 0}
+.card{border:1px solid var(--line);border-radius:12px;padding:16px 17px;background:var(--soft)}
+.card .big{font-family:var(--serif);font-size:29px;color:var(--accent);line-height:1.1;font-weight:600}
+.card .lbl{font-size:13.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+/* ---------- bibtex ---------- */
+pre{background:var(--soft);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13px;
+    line-height:1.6;color:var(--body);margin:0}
+footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
+
+@media (max-width:600px){
+  body{font-size:16px}
+  header{padding:44px 0 34px}
+  section{padding:34px 0}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>On-Policy Self-Distillation without Any Supervision</h1>
+    <p class="sub">A language model can supervise its own distillation &mdash; no labels, no verifier, no larger teacher.</p>
+
+    <p class="authors">
+      Yijiang Li<sup>1</sup> &nbsp; Bingyang Wang<sup>2</sup> &nbsp; Yijun Liang<sup>3</sup> &nbsp;
+      Yunjie Tian<sup>4</sup> &nbsp; Di Fu<sup>4</sup> &nbsp; Nuno Vasconcelos<sup>1</sup>
+    </p>
+    <p class="affil">
+      <sup>1</sup>UC San Diego &nbsp;&middot;&nbsp; <sup>2</sup>Georgia Institute of Technology &nbsp;&middot;&nbsp;
+      <sup>3</sup>University of Maryland, College Park &nbsp;&middot;&nbsp; <sup>4</sup>ByteDance
+    </p>
+
+    <div class="links">
+      <a class="btn" href="https://arxiv.org/abs/2608.06296"><span class="ic">&#128196;</span> Paper</a>
+      <a class="btn ghost" href="https://arxiv.org/pdf/2608.06296"><span class="ic">&#11015;</span> PDF</a>
+      <a class="btn ghost" href="https://github.com/williamium3000/u-opsd"><span class="ic">&#128187;</span> Code</a>
+      <a class="btn ghost" href="https://huggingface.co/u-opsd"><span class="ic">&#129303;</span> Models</a>
+      <span class="soon">Code releasing soon</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<section id="abstract">
+  <h2>Abstract</h2>
+  <p class="lead">On-policy (Self-)Distillation (OPD / OPSD) has shown strong potential for post-training large
+  language models (LLMs). However, existing methods still rely heavily on external supervision, including
+  ground-truth signals, environmental feedback, or guidance from larger models, and therefore fall short of
+  genuine &ldquo;self&rdquo;-distillation. In this study, we show that on-policy self-distillation can be achieved
+  using only a model's own generations via internal consistency. We propose unsupervised on-policy
+  self-distillation (u-OPSD). u-OPSD first samples multiple rollouts and constructs a pseudo solution by
+  majority vote under a self-consistency threshold. It then conditions the model's distribution on the
+  pseudo-solution and distills itself on the disagreeing completions, allowing the model to correct itself
+  precisely where it is confidently wrong. Across diverse benchmarks, base models, and training settings,
+  u-OPSD consistently improves over the base models and matches or surpasses supervised methods with ground
+  truth (GT) such as OPSD and GRPO. On five mathematical reasoning benchmarks, i.e., AIME24, AIME25, HMMT25,
+  MATH500, and AMC23, u-OPSD improves over the base model by 8.5% and 10.7% on Qwen3 non-thinking mode at 4B
+  and 8B scales, and outperforms OPSD by 3.2% and 2.3% on average, respectively. In thinking mode, u-OPSD stays
+  on par with OPSD, ahead by 0.9% at 4B and level at 8B and surpassing GRPO by 0.7% and 1.1%, respectively.</p>
+</section>
+
+<section id="method">
+  <h2>How it works</h2>
+  <p>On-policy self-distillation needs a teacher that is better than the student. Prior work buys that gap with
+  something external &mdash; a gold solution in the teacher's context, a verifier's reward, a larger model.
+  u-OPSD buys it with <em>self-consistency</em>: the model's majority answer over several rollouts is more
+  reliable than any single rollout, so conditioning the teacher on that consensus creates the gap for free.</p>
+
+  <figure>
+    <img src="static/images/comparison.png" alt="Three settings compared: OPSD/SDFT with a ground-truth solution or in-context examples, SDPO with environment feedback, and u-OPSD with no supervision.">
+    <figcaption>Where the teacher's advantage comes from. <strong>Left:</strong> OPSD / SDFT read a
+    ground-truth solution or in-context examples. <strong>Middle:</strong> SDPO draws on rich environment
+    feedback. <strong>Right:</strong> u-OPSD uses none of it &mdash; the privileged context is the model's own
+    majority-vote consensus.</figcaption>
+  </figure>
+
+  <div class="flow">
+    <div class="step">
+      <div class="num">1</div>
+      <div>
+        <h4>Sample and vote</h4>
+        <p>Draw <span class="kbd">G</span> rollouts for a prompt and take a majority vote over their final
+        answers. If the winning answer's share clears the self-consistency threshold
+        <span class="kbd">&tau;</span>, an agreeing rollout becomes the <strong>pseudo-solution</strong>;
+        otherwise the prompt is skipped.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <div>
+        <h4>Condition the teacher on it</h4>
+        <p>The teacher is <em>the same model</em>, given the pseudo-solution as privileged context the student
+        never sees. That context is what makes its next-token distribution sharper than the student's.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <div>
+        <h4>Distil where the model disagreed with itself</h4>
+        <p>Minimise the divergence between teacher and student over the <span class="kbd">k</span> rollouts
+        that <em>disagreed</em> with the vote. The update lands exactly on the traces where the model was
+        confidently wrong, and nowhere else.</p>
+      </div>
+    </div>
+  </div>
+
+  <figure>
+    <img src="static/images/overview.png" alt="Overview of unsupervised on-policy self-distillation: rollouts are voted into a pseudo-solution that conditions the teacher, and the student is distilled on the disagreeing rollouts.">
+    <figcaption>Overview of u-OPSD. Ground-truth supervision in on-policy self-distillation is replaced by
+    pseudo-labels built from the model's own majority-vote consensus.</figcaption>
+  </figure>
+
+  <p>Three hyperparameters carry the method: the number of rollouts <span class="kbd">G</span>, the
+  self-consistency threshold <span class="kbd">&tau;</span>, and how many disagreeing rollouts are distilled
+  per prompt, <span class="kbd">k</span>. Nothing else about the base recipe changes &mdash; the objective is
+  still a full-vocabulary divergence on the model's own on-policy samples.</p>
+</section>
+
+<section id="results">
+  <h2>Results</h2>
+
+  <div class="cards">
+    <div class="card"><div class="big">+8.5</div><div class="lbl">points over base, Qwen3-4B non-thinking</div></div>
+    <div class="card"><div class="big">+10.7</div><div class="lbl">points over base, Qwen3-8B non-thinking</div></div>
+    <div class="card"><div class="big">+3.2 / +2.3</div><div class="lbl">over supervised OPSD at 4B / 8B, non-thinking</div></div>
+    <div class="card"><div class="big">+0.9 / +1.1</div><div class="lbl">over supervised OPSD at 4B and GRPO at 8B, thinking</div></div>
+    <div class="card"><div class="big">+1.8 / +1.7</div><div class="lbl">over base on Qwen3-4B and 30B-A3B Instruct</div></div>
+  </div>
+
+  <h3>Non-thinking mode</h3>
+  <div class="scroller">
+  <table>
+    <caption>Five mathematical reasoning benchmarks. Methods above the divider use ground-truth answers;
+    those below use none. Best label-free result in each column in red.</caption>
+    <thead>
+      <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>MATH500</th><th>AMC23</th><th>Avg.</th></tr>
+    </thead>
+    <tbody>
+      <tr class="group"><td colspan="7">Qwen3-4B</td></tr>
+      <tr><td>Base</td><td>25.83</td><td>17.78</td><td>10.83</td><td>84.10</td><td>66.25</td><td>40.96</td></tr>
+      <tr><td class="pad">+ SFT <span style="color:var(--muted)">(GT)</span></td><td>26.67</td><td>19.72</td><td>13.06</td><td>84.85</td><td>69.38</td><td>42.73</td></tr>
+      <tr><td class="pad">+ GRPO <span style="color:var(--muted)">(GT)</span></td><td>25.00</td><td>22.50</td><td>15.00</td><td>86.20</td><td>80.62</td><td>45.86</td></tr>
+      <tr><td class="pad">+ OPSD <span style="color:var(--muted)">(GT)</span></td><td>32.22</td><td>20.83</td><td>16.39</td><td>85.75</td><td>76.25</td><td>46.29</td></tr>
+      <tr><td class="pad">+ TTRL</td><td>25.00</td><td>20.83</td><td>11.94</td><td>83.60</td><td>67.50</td><td>41.77</td></tr>
+      <tr><td class="pad">+ RENT</td><td>22.22</td><td>20.28</td><td>11.39</td><td>84.00</td><td>74.38</td><td>42.45</td></tr>
+      <tr><td class="pad">+ Intuitor</td><td>23.89</td><td>20.00</td><td>11.67</td><td>83.70</td><td>70.62</td><td>41.98</td></tr>
+      <tr class="ours"><td class="pad">+ u-OPSD</td><td class="best">37.50</td><td class="best">27.78</td><td>14.44</td><td class="best">86.50</td><td class="best">81.25</td><td class="best">49.49</td></tr>
+
+      <tr class="group"><td colspan="7">Qwen3-8B</td></tr>
+      <tr><td>Base</td><td>27.50</td><td>23.33</td><td>13.61</td><td>84.05</td><td>69.38</td><td>43.57</td></tr>
+      <tr><td class="pad">+ SFT <span style="color:var(--muted)">(GT)</span></td><td>26.94</td><td>21.67</td><td>11.94</td><td>84.10</td><td>72.50</td><td>43.43</td></tr>
+      <tr><td class="pad">+ GRPO <span style="color:var(--muted)">(GT)</span></td><td>30.56</td><td>21.94</td><td>13.06</td><td>87.85</td><td>73.75</td><td>45.43</td></tr>
+      <tr><td class="pad">+ OPSD <span style="color:var(--muted)">(GT)</span></td><td>41.67</td><td>28.06</td><td>18.33</td><td>87.15</td><td>85.00</td><td>52.04</td></tr>
+      <tr><td class="pad">+ TTRL</td><td>27.22</td><td>21.11</td><td>13.06</td><td>84.45</td><td>71.88</td><td>43.54</td></tr>
+      <tr><td class="pad">+ RENT</td><td>28.33</td><td>21.67</td><td>10.83</td><td>84.00</td><td>70.00</td><td>42.97</td></tr>
+      <tr><td class="pad">+ Intuitor</td><td>26.11</td><td>22.50</td><td>11.67</td><td>84.20</td><td>73.12</td><td>43.52</td></tr>
+      <tr class="ours"><td class="pad">+ u-OPSD</td><td class="best">45.56</td><td class="best">34.72</td><td class="best">18.61</td><td class="best">89.55</td><td class="best">83.12</td><td class="best">54.31</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>The three label-free RL baselines &mdash; TTRL, RENT and Intuitor &mdash; stay within about a point of the
+  base model at both scales. u-OPSD is the only label-free method that moves, and it moves past OPSD, which
+  reads the gold answer.</p>
+
+  <h3>Thinking mode</h3>
+  <div class="scroller">
+  <table>
+    <caption>With reasoning traces enabled the headroom is much smaller, and every method lands within a
+    couple of points of base. u-OPSD stays level with supervised OPSD and ahead of GRPO.</caption>
+    <thead>
+      <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>MATH500</th><th>AMC23</th><th>Avg.</th></tr>
+    </thead>
+    <tbody>
+      <tr class="group"><td colspan="7">Qwen3-4B</td></tr>
+      <tr><td>Base</td><td>74.17</td><td>64.72</td><td>45.56</td><td>94.80</td><td>95.00</td><td>74.85</td></tr>
+      <tr><td class="pad">+ GRPO <span style="color:var(--muted)">(GT)</span></td><td>73.89</td><td>69.44</td><td>43.61</td><td>95.45</td><td>99.38</td><td>76.35</td></tr>
+      <tr><td class="pad">+ OPSD <span style="color:var(--muted)">(GT)</span></td><td>75.28</td><td>68.06</td><td>43.06</td><td>95.20</td><td>99.38</td><td>76.20</td></tr>
+      <tr><td class="pad">+ TTRL</td><td>72.78</td><td>68.33</td><td>45.56</td><td>95.90</td><td>96.25</td><td>75.76</td></tr>
+      <tr><td class="pad">+ RENT</td><td>74.72</td><td>65.83</td><td>43.06</td><td>95.25</td><td>99.38</td><td>75.65</td></tr>
+      <tr><td class="pad">+ Intuitor</td><td>76.39</td><td>68.33</td><td>42.78</td><td>95.35</td><td>97.50</td><td>76.07</td></tr>
+      <tr class="ours"><td class="pad">+ u-OPSD</td><td class="best">76.39</td><td>68.06</td><td class="best">46.94</td><td class="best">95.75</td><td>98.12</td><td class="best">77.05</td></tr>
+
+      <tr class="group"><td colspan="7">Qwen3-8B</td></tr>
+      <tr><td>Base</td><td>75.56</td><td>66.67</td><td>45.00</td><td>96.35</td><td>96.88</td><td>76.09</td></tr>
+      <tr><td class="pad">+ GRPO <span style="color:var(--muted)">(GT)</span></td><td>76.94</td><td>69.17</td><td>47.78</td><td>95.70</td><td>95.00</td><td>76.92</td></tr>
+      <tr><td class="pad">+ OPSD <span style="color:var(--muted)">(GT)</span></td><td>80.83</td><td>69.72</td><td>46.67</td><td>95.75</td><td>96.88</td><td>77.97</td></tr>
+      <tr><td class="pad">+ TTRL</td><td>77.22</td><td>68.61</td><td>46.94</td><td>95.75</td><td>96.25</td><td>76.95</td></tr>
+      <tr><td class="pad">+ RENT</td><td>77.50</td><td>70.28</td><td>45.83</td><td>95.95</td><td>96.25</td><td>77.16</td></tr>
+      <tr><td class="pad">+ Intuitor</td><td>76.94</td><td>70.28</td><td>44.17</td><td>96.20</td><td>95.62</td><td>76.64</td></tr>
+      <tr class="ours"><td class="pad">+ u-OPSD</td><td>76.94</td><td class="best">71.39</td><td class="best">47.50</td><td>96.00</td><td class="best">98.12</td><td class="best">77.99</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Instruction-tuned models</h3>
+  <div class="scroller">
+  <table>
+    <caption>u-OPSD is the only method that improves on both instruction-tuned checkpoints.</caption>
+    <thead>
+      <tr><th>Model</th><th>Method</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>MATH500</th><th>AMC23</th><th>Avg.</th></tr>
+    </thead>
+    <tbody>
+      <tr><td rowspan="3">Qwen3-30B-A3B-Instruct</td><td>Base</td><td>80.00</td><td>63.33</td><td>43.33</td><td>96.33</td><td>95.83</td><td>75.77</td></tr>
+      <tr><td>OPSD <span style="color:var(--muted)">(GT)</span></td><td>78.89</td><td>61.11</td><td>47.78</td><td>97.20</td><td>96.67</td><td>76.33</td></tr>
+      <tr class="ours"><td>u-OPSD</td><td>75.56</td><td class="best">65.56</td><td class="best">50.00</td><td>97.00</td><td class="best">99.17</td><td class="best">77.46</td></tr>
+      <tr><td rowspan="3">Qwen3-4B-Instruct</td><td>Base</td><td>66.67</td><td>53.33</td><td>27.78</td><td>93.87</td><td>93.33</td><td>67.00</td></tr>
+      <tr><td>OPSD <span style="color:var(--muted)">(GT)</span></td><td>62.22</td><td>52.22</td><td>31.11</td><td>94.93</td><td>95.00</td><td>67.10</td></tr>
+      <tr class="ours"><td>u-OPSD</td><td class="best">68.89</td><td class="best">57.78</td><td>28.89</td><td>94.20</td><td>94.17</td><td class="best">68.78</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure>
+    <img src="static/images/curves.png" alt="Accuracy of every method across training checkpoints on AIME24, AIME25 and MATH500, in thinking and non-thinking mode.">
+    <figcaption>Training curves on Qwen3-4B. <strong>Left three panels:</strong> thinking mode.
+    <strong>Right three:</strong> non-thinking. Top row compares against the supervised arms, bottom row
+    against the label-free ones; the dashed line is the base model. The two modes separate at a glance &mdash;
+    in non-thinking mode u-OPSD breaks away from every other arm, while in thinking mode all methods stay
+    within about two points of base.</figcaption>
+  </figure>
+</section>
+
+<section id="ablations">
+  <h2>Ablations</h2>
+  <p>Two findings run against intuition. First, <strong>filtering hurts</strong>: raising the self-consistency
+  threshold &tau; makes the pseudo-labels cleaner but the model worse, and accepting every prompt
+  (&tau;&nbsp;=&nbsp;0) is the best setting we tried. Second, <strong>a slowly-updated teacher beats a frozen
+  one</strong>, though only within a narrow band of EMA rates.</p>
+
+  <figure>
+    <img src="static/images/ablation_config.png" alt="Three ablation panels: self-consistency threshold, rollouts per prompt, and teacher update rule.">
+    <figcaption>Configuration ablations on Qwen3-8B non-thinking with longest-1, five-benchmark average.
+    <strong>Left:</strong> the self-consistency threshold &tau;, the fraction of rollouts that must agree for a
+    prompt to be used &mdash; accuracy falls monotonically as the threshold rises. <strong>Middle:</strong>
+    rollouts per prompt <em>G</em>; more rollouts make the vote more reliable, with returns flattening past 12.
+    <strong>Right:</strong> how the teacher is updated, frozen against three EMA rates.</figcaption>
+  </figure>
+
+  <p>The teacher's context matters far more than which rollout supplies it. Stripping the reference down to the
+  bare pseudo-<em>label</em> &mdash; the boxed answer with no reasoning &mdash; costs 10 to 16 points and drops
+  every variant to the level of the untrained model. Given a full trace, it hardly matters which one.</p>
+
+  <figure>
+    <img src="static/images/ablation_refgrid.png" alt="Teacher reference selection against distillation target selection, two panels.">
+    <figcaption>Teacher reference against distillation target, on Qwen3-8B non-thinking.
+    <em>(a)</em> What the teacher is conditioned on. <em>(b)</em> Which disagreeing rollout is distilled.
+    The teacher needs a reasoning trace, not an answer.</figcaption>
+  </figure>
+</section>
+
+<section id="models">
+  <h2>Code and models</h2>
+  <p>Training and evaluation code will be available at
+  <a href="https://github.com/williamium3000/u-opsd">github.com/williamium3000/u-opsd</a>.</p>
+
+  <h3>Model weights</h3>
+  <p>LoRA adapters for the checkpoints reported above are on the Hugging Face Hub. Each card carries its own
+  evaluation numbers, the exact training configuration, and that run's training log.</p>
+  <div class="scroller">
+  <table>
+    <thead><tr><th>Base model</th><th>Mode</th><th>Weights</th></tr></thead>
+    <tbody>
+      <tr><td>Qwen3-4B</td><td>non-thinking</td><td style="text-align:left"><a href="https://huggingface.co/u-opsd/qwen3-4b-non-thinking">u-opsd/qwen3-4b-non-thinking</a></td></tr>
+      <tr><td>Qwen3-4B</td><td>thinking</td><td style="text-align:left"><a href="https://huggingface.co/u-opsd/qwen3-4b-thinking">u-opsd/qwen3-4b-thinking</a></td></tr>
+      <tr><td>Qwen3-8B</td><td>non-thinking</td><td style="text-align:left"><a href="https://huggingface.co/u-opsd/qwen3-8b-non-thinking">u-opsd/qwen3-8b-non-thinking</a></td></tr>
+      <tr><td>Qwen3-8B</td><td>thinking</td><td style="text-align:left"><a href="https://huggingface.co/u-opsd/qwen3-8b-thinking">u-opsd/qwen3-8b-thinking</a></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="bibtex">
+  <h2>BibTeX</h2>
+<pre>@article{li2026uopsd,
+  title   = {On-Policy Self-Distillation without Any Supervision},
+  author  = {Li, Yijiang and Wang, Bingyang and Liang, Yijun and
+             Tian, Yunjie and Fu, Di and Vasconcelos, Nuno},
+  journal = {arXiv preprint arXiv:2608.06296},
+  year    = {2026}
+}</pre>
+</section>
+
+<footer>
+  <p>Page source in the <code>page</code> branch of
+  <a href="https://github.com/williamium3000/u-opsd">williamium3000/u-opsd</a>.
+  Contact: <a href="mailto:yijiangli@ucsd.edu">yijiangli@ucsd.edu</a>.</p>
+</footer>
+
+</div>
+</body>
+</html>
