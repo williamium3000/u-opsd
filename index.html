@@ -12,15 +12,16 @@
 <style>
 :root{
   --ink:#14171c; --body:#3d4450; --muted:#767f8d; --line:#e3e7ec;
+  --hero-bg:linear-gradient(180deg,#ddebf8 0%,#eef6fc 100%);
   --bg:#ffffff; --soft:#f7f9fb; --accent:#b2182b; --accent2:#0072b2;
   --step:#dbeafe; --step-ink:#1d4ed8;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,"Noto Sans",sans-serif;
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
 }
-:root[data-theme="dark"]{--step:#1e3a5f;--step-ink:#9ec9f0;--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
+:root[data-theme="dark"]{--hero-bg:linear-gradient(180deg,#16202e 0%,#12151a 100%);--step:#1e3a5f;--step-ink:#9ec9f0;--ink:#eef1f5;--body:#c2c9d4;--muted:#8b94a3;--line:#2a3038;
   --bg:#12151a;--soft:#181c22;--accent:#e8697e;--accent2:#5ab0e8;}
-:root[data-theme="light"]{--step:#dbeafe;--step-ink:#1d4ed8;--ink:#14171c;--body:#3d4450;--muted:#767f8d;--line:#e3e7ec;
+:root[data-theme="light"]{--hero-bg:linear-gradient(180deg,#ddebf8 0%,#eef6fc 100%);--step:#dbeafe;--step-ink:#1d4ed8;--ink:#14171c;--body:#3d4450;--muted:#767f8d;--line:#e3e7ec;
   --bg:#ffffff;--soft:#f7f9fb;--accent:#b2182b;--accent2:#0072b2;}
 
 *{box-sizing:border-box}
@@ -31,7 +32,7 @@ a{color:var(--accent2);text-decoration:none}
 a:hover{text-decoration:underline}
 
 /* ---------- hero ---------- */
-header{padding:64px 0 42px;border-bottom:1px solid var(--line)}
+header{padding:64px 0 42px;border-bottom:1px solid var(--line);background:var(--hero-bg)}
 h1{font-family:var(--serif);font-size:clamp(30px,5vw,44px);line-height:1.18;
    color:var(--ink);font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
 .sub{color:var(--muted);font-size:15px;margin:0 0 26px}
@@ -39,6 +40,9 @@ h1{font-family:var(--serif);font-size:clamp(30px,5vw,44px);line-height:1.18;
 .authors sup{color:var(--muted);font-size:11px;font-weight:600}
 .affil{font-size:14px;color:var(--muted);margin:0 0 28px;line-height:1.8}
 .affil sup{font-weight:600}
+.logo-strip{display:flex;flex-wrap:wrap;align-items:center;gap:26px;margin:6px 0 28px}
+.logo-strip img{height:30px;width:auto}
+:root[data-theme="dark"] .logo-strip img{background:#fff;border-radius:6px;padding:3px 8px}
 .links{display:flex;flex-wrap:wrap;gap:10px}
 .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 17px;border-radius:999px;
      background:var(--ink);color:var(--bg);font-size:14.5px;font-weight:500;
@@ -142,13 +146,13 @@ footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
     <p class="sub">A language model can supervise its own distillation &mdash; no labels, no verifier, no larger teacher.</p>
 
     <p class="authors">
-      Yijiang Li<sup>1</sup> &nbsp; Bingyang Wang<sup>2</sup> &nbsp; Yijun Liang<sup>3</sup> &nbsp;
-      Yunjie Tian<sup>4</sup> &nbsp; Di Fu<sup>4</sup> &nbsp; Nuno Vasconcelos<sup>1</sup>
+      Yijiang Li &nbsp; Bingyang Wang &nbsp; Yijun Liang &nbsp;
+      Yunjie Tian &nbsp; Di Fu &nbsp; Nuno Vasconcelos
     </p>
-    <p class="affil">
-      <sup>1</sup>UC San Diego &nbsp;&middot;&nbsp; <sup>2</sup>Georgia Institute of Technology &nbsp;&middot;&nbsp;
-      <sup>3</sup>University of Maryland, College Park &nbsp;&middot;&nbsp; <sup>4</sup>ByteDance
-    </p>
+    <div class="logo-strip">
+      <img src="static/images/logos/ucsd.png" alt="UC San Diego">
+      <img src="static/images/logos/bytedance.png" alt="ByteDance">
+    </div>
 
     <div class="links">
       <a class="btn" href="https://arxiv.org/abs/2608.06296"><span class="ic">&#128196;</span> Paper</a>
@@ -405,9 +409,7 @@ footer{padding:34px 0 56px;color:var(--muted);font-size:14px}
 </section>
 
 <footer>
-  <p>Page source in the <code>page</code> branch of
-  <a href="https://github.com/williamium3000/u-opsd">williamium3000/u-opsd</a>.
-  Contact: <a href="mailto:yijiangli@ucsd.edu">yijiangli@ucsd.edu</a>.</p>
+  <p>Contact: <a href="mailto:yijiangli@ucsd.edu">yijiangli@ucsd.edu</a>.</p>
 </footer>
 
 </div>
